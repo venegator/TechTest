@@ -1,0 +1,33 @@
+# Possible enhancements
+#  - Security Context on PoC template(fsgroup, run as user). Can be also defined at Dockerfile level.
+#  - Apply Pod Security Standards with Pod Security Admission.
+
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: scanner
+  namespace: default
+  labels:
+    app: scanner
+spec:
+  schedule: "*/5 * * * *"
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: scanner
+        spec:
+          containers:
+          - name: scanner
+            image: venegator/scanner@sha256:3c0e658553bfb22fdea0525b18ad3c6af8efdc5356830458d200e731a1cd27ff
+            imagePullPolicy: IfNotPresent
+            volumeMounts:
+            - mountPath: "/nmapscans"
+              name: nmapscans
+            args: ["127.0.0.1"] # Configure here the ip, ip range (format 0-255.0-255.0-255.0-255) or domain to be scanned by nmap
+          volumes:
+          - name: nmapscans
+            persistentVolumeClaim:
+              claimName: scanner-pvc
+          restartPolicy: OnFailure

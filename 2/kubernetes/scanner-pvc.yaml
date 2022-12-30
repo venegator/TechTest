@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: scanner-pvc
+  namespace: default
+  labels:
+    app: scanner
+spec:
+  storageClassName: standard # Default minikube storageclass
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi

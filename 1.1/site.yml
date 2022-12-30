@@ -1,0 +1,68 @@
+# Exercise 1 - 1.1 Install and configure docker.
+# This playbook will install docker in localhost as well as enablig container logging to Docker's host's syslog file
+
+# Possible enhancements:
+#  - Rely on Inventory.
+#  - Segregation of Install Docker task in sub-tasks. 
+#  - Parameterization of docker version to be installed.
+#  - Configure Docker rootless mode and apply daemon secure configurations.
+
+- name: Install Docker CE and configure syslog logging driver
+  hosts: 127.0.0.1
+  connection: local
+  gather_facts: no
+  tasks:
+   - name: Install docker 
+     shell: |
+       apt-get update
+       apt-get install -y ca-certificates curl gnupg lsb-release rsyslog
+       mkdir -p /etc/apt/keyrings
+       curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+       echo \
+         "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+         $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+       chmod a+r /etc/apt/keyrings/docker.gpg
+       apt-get update
+       apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+     become: yes
+     become_user: root 
+
+   - name: Create daemon.json config file with syslog configuration
+     ansible.builtin.copy:
+       dest: /etc/docker/daemon.json
+       content: |
+         {% raw %}
+         {
+           "log-driver": "syslog",
+           "log-opts": {
+             "tag": "{{.ImageName}}/{{.Name}}/{{.ID}}"
+           }
+         }
+         {% endraw %}
+     become: yes
+     become_user: root
+
+# Another alternative to above task:
+#   - name: Create daemon.json config file with syslog configuration
+#     ansible.builtin.blockinfile:
+#       path: /etc/docker/daemon.json
+#       create: true
+#       marker: ""
+#       block: |
+#         {% raw %}
+#           {
+#             "log-driver": "syslog",
+#             "log-opts": {
+#               "tag": "{{.ImageName}}/{{.Name}}/{{.ID}}"
+#             }
+#           }
+#         {% endraw %}
+#     become: yes
+#     become_user: root
+    
+   - name: Restart docker daemon service to apply changes in configuration
+     ansible.builtin.service:
+       name: docker
+       state: restarted
+     become: yes
+     become_user: root
